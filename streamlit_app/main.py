@@ -2,290 +2,89 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import io
+import datetime
 import xlsxwriter
+from datetime import date, timedelta
 
+chargebacks180 = st.number_input("Enter Chargebacks For 180 Days", key="chargebacks180")
+chargebackslifetime = st.number_input("Enter Chargebacks for Lifetime", key="chargebackslifetime")
 
-firstname1 = st.text_input("Enter Owner First Name 1", key="firstname1")
-lastname1 = st.text_input("Enter Owner Last Name 1", key="lastname1")
+uploaded_files = st.file_uploader("Upload CSV", type="csv", accept_multiple_files=True)
 
-firstname2 = st.text_input("Enter Owner First Name 2", key="firstname2")
-lastname2 = st.text_input("Enter Owner First Name 2", key="lastname2")
-
-firstname3 = st.text_input("Enter Owner First Name 3", key="firstname3")
-lastname3 = st.text_input("Enter Owner First Name 3", key="lastname3")
-
-firstname4 = st.text_input("Enter Owner First Name 4", key="firstname4")
-lastname4 = st.text_input("Enter Owner First Name 4", key="lastname4")
-
-
-
-highticketstring = st.text_input("Enter High Ticket INTEGER ONLY", key="highticket")
-
-uploaded_file = st.file_uploader("Please Upload CSV File", type=['csv'])
-
-
-
-
-
-
-if uploaded_file is not None:
-    highticketval = int(highticketstring)
-    dfpreclean=pd.read_csv(uploaded_file)
+if uploaded_files:
+    for file in uploaded_files:
+        file.seek(0)
+    uploaded_data_read = [pd.read_csv(file) for file in uploaded_files]
+    df = pd.concat(uploaded_data_read)
 
     buffer = io.BytesIO()
 
-    #Convert total column to currency format with 0 zero decimal places.
-    dfpreclean.drop(['id','merchant_id','user_id','customer_id','subtotal','tax','is_manual','success','donation','tip','meta','pre_auth','updated_at','source'], axis=1, inplace=True)
-    dfpreclean2 = dfpreclean[(dfpreclean['type'].isna() == False) & (dfpreclean['total'].isna() == False)]
-    dfpreclean3 = dfpreclean2[(dfpreclean2['payment_method'] == 'card') | (dfpreclean2['payment_method'] == 'bank')]
-    dfpreclean4 = dfpreclean3[dfpreclean3['type'] == 'charge']
-    dfpreclean4["channel"].fillna("blank", inplace = True)
-    dfpreclean4["memo"].fillna("blank", inplace = True)
-    dfpreclean4["payment_note"].fillna("blank", inplace = True)
-    
-    df = dfpreclean4.loc[:,['type', 'created_at', 'total', 'payment_person_name', 'customer_firstname', 'customer_lastname',\
-          'payment_last_four', 'last_four', 'payment_method', 'channel', 'memo', 'payment_note', 'reference', \
-          'issuer_auth_code', 'payment_card_type', 'payment_card_exp', 'payment_bank_name', 'payment_bank_type',\
-          'payment_bank_holder_type', 'billing_address_1', 'billing_address_2','billing_address_city', \
-          'billing_address_state', 'billing_address_zip', 'customer_company','customer_email', 'customer_phone', \
-          'customer_address_1','customer_address_2', 'customer_address_city', 'customer_address_state', \
-          'customer_address_zip', 'customer_notes', 'customer_reference', 'customer_created_at', \
-          'customer_updated_at', 'customer_deleted_at', 'gateway_id', 'gateway_name', 'gateway_type', \
-          'gateway_created_at', 'gateway_deleted_at', 'user_name', 'system_admin', 'user_created_at',\
-          'user_updated_at', 'user_deleted_at']]
-    
-    
-    totalsum = np.sum(df['total'])
 
-    total_transactions = df['type'].count()
-    mean_transaction = np.mean(df['total'])
-    median_transaction = np.median(df['total'])
-    max_transaction = np.max(df['total'])
-    total_unique_customer_last_four = df['payment_last_four'].nunique()
-    total_unique_customer_names = df['payment_person_name'].nunique()
+    days90 = date.today() - timedelta(days=90)
+    days180 = date.today() - timedelta(days=180)
 
-    dfgroupname = df.groupby(['payment_person_name']).agg(
-            tran_count=('total', 'count'),
-            tran_sum=('total', np.sum)
-    )
+    df2 = df[df['created_at'].str.split(expand=True)[1].isna() == False]
+    dfbaddates = df[df['created_at'].str.split(expand=True)[1].isna() == True]
 
-    dfgrouplastfour = df.groupby(['payment_last_four']).agg(
-            tran_count=('total', 'count'),
-            tran_sum=('total', np.sum)
-    )
+    dfbaddates['created_at'] = dfbaddates['created_at'].apply(lambda x: datetime.datetime(1900, 1, 1, 0, 0, 0) + datetime.timedelta(days=float(x)))
+    dfbaddates['created_at'] = dfbaddates['created_at'].dt.strftime('%m/%d/%y')
+    df2['created_at'] = df2['created_at'].str.split(expand=True)[0].str.strip() 
+    newdf = pd.concat([df2, dfbaddates])
+    newdf['created_at'] = pd.to_datetime(newdf['created_at']).dt.date
+    df3 = newdf.query("payment_method == 'card' | payment_method == 'bank'")
 
-    avg_transactions_count_per_customer_name = np.mean(dfgroupname['tran_count'])
-    avg_transactions_sum_per_customer_name = np.mean(dfgroupname['tran_sum'])
-    avg_transactions_count_per_customer_last_four = np.mean(dfgrouplastfour['tran_count'])
-    avg_transactions_sum_per_customer_last_four = np.mean(dfgrouplastfour['tran_sum'])
+    volume = df3.query("type == 'charge'")
+    volumetotal = np.sum(volume['total'])
+    volume90 = np.sum(volume[volume['created_at'] > days90]['total'])
+    volume180 = np.sum(volume[volume['created_at'] > days180]['total'])
 
-    dfcalc = pd.DataFrame({'totalsum':[totalsum],
-                           'mean_transaction':[mean_transaction],
-                           'median_transaction':[median_transaction], 
-                           'max_transaction':[max_transaction],
-                           'total_transactions':[total_transactions],
-                           'total_unique_customer_names':[total_unique_customer_names],                      
-                           'avg_transactions_count_per_customer_name':[avg_transactions_count_per_customer_name],
-                           'avg_transactions_sum_per_customer_name':[avg_transactions_sum_per_customer_name],
-                           'total_unique_customer_last_four':[total_unique_customer_last_four],
-                           'avg_transactions_count_per_customer_last_four':[avg_transactions_count_per_customer_last_four],
-                           'avg_transactions_sum_per_customer_last_four':[avg_transactions_sum_per_customer_last_four]
+    refund = df3.query("type == 'refund'")
+    refundtotal = np.sum(refund['total'])
+    refund90 = np.sum(refund[refund['created_at'] > days90]['total'])
+
+    Lifetime_refund_rate = (refundtotal / volumetotal)
+    day90_refund_rate = (refund90/volume90)
+    Lifetime_chargeback_rate = (chargebackslifetime / volumetotal)
+    day180_chargeback_rate = (chargebacks180/volume180)
+
+    dfcalc = pd.DataFrame({'Refunds for past 90 days':[refund90],
+                        '90 day volume':[volume90],
+                        '90 day refund rate':[day90_refund_rate],
+                        'Lifetime refunds':[refundtotal],
+                        'Lifetime volume':[volumetotal],
+                        'Lifetime Lifetime_refund_rate ':[Lifetime_refund_rate],
+                        'Chargebacks for past 180 days':[chargebacks180],
+                        '180 day volume':[volume180],
+                        '180 day chargeback rate':[day180_chargeback_rate],
+                        'Lifetime chargebacks':[chargebackslifetime],
+                        'Lifetime volume':[volumetotal],
+                        'Lifetime chargeback rate':[Lifetime_chargeback_rate],
                         })
 
-    format_mapping = {"totalsum": '${:,.2f}',
-                      "mean_transaction": '${:,.2f}',
-                      "median_transaction": '${:,.2f}',
-                      "max_transaction": '${:,.2f}',
-                      "total_transactions": '{:,.0f}', 
-                      "total_unique_customer_names": '{:,.0f}',
-                      "avg_transactions_count_per_customer_name": '{:,.2f}',
-                      "avg_transactions_sum_per_customer_name": '${:,.2f}',                  
-                      "total_unique_customer_last_four": '{:,.0f}',
-                      "avg_transactions_count_per_customer_last_four": '{:,.2f}',
-                      "avg_transactions_sum_per_customer_last_four": '${:,.2f}' 
-                    }
+    format_mapping = {'Refunds for past 90 days':'${:,.2f}',
+                        '90 day volume':'${:,.2f}',
+                        '90 day refund rate':'{:.2%}',
+                        'Lifetime refunds':'${:,.2f}',
+                        'Lifetime volume':'${:,.2f}',
+                        'Lifetime Lifetime_refund_rate ':'{:.2%}',
+                        'Chargebacks for past 180 days':'${:,.2f}',
+                        '180 day volume':'${:,.2f}',
+                        '180 day chargeback rate':'{:.2%}',
+                        'Lifetime chargebacks':'${:,.2f}',
+                        'Lifetime volume':'${:,.2f}',
+                        'Lifetime chargeback rate':'{:.2%}',
+                        }
 
     for key, value in format_mapping.items():
-            dfcalc[key] = dfcalc[key].apply(value.format)
+        dfcalc[key] = dfcalc[key].apply(value.format)
 
-    #Can you make this tab look like the "Pivot Table 1" tab to the right of it that I manually created?  I also uploaded my source CSV file.
-    pivottablenames = pd.pivot_table(df, index=['payment_person_name'], aggfunc={'total': np.sum, 'payment_person_name': 'count',})
-    pivottablenames = pivottablenames.rename(columns={"payment_person_name": "count_of_total", "total": "sum_of_total"})
-    pivottablenames = pivottablenames.loc[:,['sum_of_total', 'count_of_total']]
-    pivottablenames['sum_of_total'] = pivottablenames['sum_of_total'].apply('${:,.2f}'.format)
-
-    pivottablelastfour = pd.pivot_table(df, index=['payment_last_four'], aggfunc={ 'total': np.sum, 'payment_last_four': 'count'})
-    pivottablelastfour = pivottablelastfour.rename(columns={"payment_last_four": "count_of_total", "total": "sum_of_total"})
-    pivottablelastfour = pivottablelastfour.loc[:,['sum_of_total', 'count_of_total']]
-    pivottablelastfour['sum_of_total'] = pivottablelastfour['sum_of_total'].apply('${:,.2f}'.format)
-
-    pivottablechannel = pd.pivot_table(df, index=['channel'], aggfunc={'payment_last_four': 'count', 'total': np.sum})
-    pivottablechannel['totalpercent'] = (pivottablechannel['total']/totalsum).apply('{:.2%}'.format)
-    pivottablechannel['total'] = pivottablechannel['total'].apply('${:,.2f}'.format)
-
-    payment_note = df[df['payment_note'].isna() == False]
-    flagged_words = '2024|2025|2026|late|delinquent|month|months|quarter|year|CBD|medicine|drugs|\
-                    loan|bail|bond|bankruptcy|bankrupt|18|21|vape|weed|career|advice|date|dating\
-                    tinder|bumble|escort|sex|massage|vibrator|solar|solar panel|warranty|warranties\
-                    Cuba|Iran|North Korea|Sudan|Syria|penny|credit|identity|currency|crypto|bitcoin|\
-                    Ethereum|nft|Cryptocurrencies|Tether|bnb|xrp|dogecoin|cardano|solano|tron|polygon|\
-                    debt|cruise|airplane|jet|charter|Tobacco|Cigarettes|egic|cigarette|theft|elimination|\
-                    eliminate|reduce|reduction|colsult|consulting|wallet|prepaid|commodity|security|trading\
-                    toy|airline|airplane|collection|enhance|occult|psychic|future|discount|Ammunition|gun|\
-                    Silencers|Suppressors|ammo|supplement|Nutraceuticals|enhance|growth|stock|equity|donation|\
-                    shipping|forwarding|adult|xxx|bride|occult|mail order|mailorder|restricted|video|penny|bidding|\
-                    bid|travel|Telemarketing|videotext|membership|club|coupon|insurance|dental|dentist|Distressed|\
-                    property|gamble|gambling|lottery|lotteries|gaming|fantasy|contest|sweepstake|incentive|prize|\
-                    lending|interest|title|loan|investment|rich|alcohol|beer|wine|liquor|pharmacy|Pharmacies|marijuana|\
-                    420|Infomercial|pawn|rebate|timeshare|time shares|resale|resell|sports|odds|forecasting|up sell|upsell|\
-                    upsale|rich|quick|broker|deal|fast|dispensaries|dispensary|money|transfer|wire|transmitter|check|cashing|\
-                    cash|mlm|Multi-Level Marketing|pre paid|prepaid|phone|flip|flipping|real estate|realestate|mobile|\
-                    virtual|credit|re-sold|meta|Pharmaceuticals|Quasi|social|free|period|negative|reputation|subscription|\
-                    trial|pay only for shipping'
-
-    payment_note_final = payment_note[payment_note['payment_note'].str.contains(flagged_words, case=False)]
-
-    memo = df[df['memo'].isna() == False]
-    badwords = 'bbb|yelp|fraud|scam|report|sloppy|shady|broken|imporsonation|\
-                bad|not working|shady|horrible|negative|rotten|poor|terrible|\
-                abysmal|awful|inaccurate|low quality|mediocre|nasty|abuse|worst|\
-                worse|angry|pissed|disgusting|no show|alarming|atrocious|adverse|\
-                alarming|angry|annoy|anxious|apathy|appalling|banal|barbed|belligerent|\
-                bemoan|beneath|boring|broken|callous|cant|clumsy|coarse|cold|cold-hearted|\
-                collapse|confused|contradictory|contrary|corrosive|corrupt|crazy|creepy|\
-                criminal|cruel|cry|cutting|damaged|damage|damaging|dastardly|dead|decaying|\
-                deformed|deny|deplorable|depressed|deprived|despicable|detrimental|dirty|\
-                disease|disgusting|disheveled|dishonest|dishonorable|dismal|distress|dont|\
-                dreadful|dreary|enraged|eroding|evil|fail|failing|faulty|fear|feeble|fight|\
-                filthy|foul|frighten|frightful|gawky|ghastly|grave|greed|greedy|grim|grimace|\
-                gross|grotesque|gruesome|guilty|haggard|hard|hard-hearted|harmful|hate|hideous|\
-                homely|horrendous|horrible|hostile|hurt|hurtful|icky|ignorant|ignore|ill|immature|\
-                imperfect|impossible|inane|inelegant|infernal|injure|injurious|insane|insidious|\
-                insipid|jealous|junk|lose|lousy|lumpy|malicious|mean|menacing|messy|misshapenmissing|\
-                misunderstood|moan|moldy|monstrous|naive|nasty|naughty|negate|negative|never|nonobody|\
-                nondescript|nonsense|not|noxious|objectionable|odious|offensive|old|oppressive|pain|\
-                perturb|pessimistic|petty|plain|poisonous|poor|prejudice|questionable|quirky|quit|\
-                reject|renege|repellant|repell|reptilian|repugnant|repulsive|revenge|revolting|rocky\
-                |rotten|rude|ruthless|sad|savage|scare|scary|scream|severe|shocking|shoddy|sick|sickening|\
-                sinister|slimy|smelly|sobbing|sorry|spiteful|sticky|stinky|stormy|stressful|stuck|stupid|\
-                substandard|suspect|suspicious|tense|terrible|terrifying|threatening|ugly|undermine|unfair|\
-                unfavorable|unhappy|unhealthy|unjust|unlucky|unpleasant|unsatisfactory|unsightly|untoward|\
-                unwanted|unwelcome|unwholesome|unwieldy|unwise|upset|vice|vicious|vile|villainous|vindictive|\
-                wary|weary|wicked|woeful|worthless|wound|yell|yucky|zero'
-
-    memofinal = memo[memo['memo'].str.contains(badwords, case=False)]
-
-    highticket = df[df['total'] >= highticketval]
-    highticket = highticket.loc[:,['payment_person_name', 'customer_firstname', 'customer_lastname', 'created_at', 'total', \
-                'payment_last_four', 'last_four', 'type', 'channel', 'memo', 'payment_note', 'reference', \
-                'payment_method', 'issuer_auth_code', 'payment_card_type', 'payment_card_exp', 'payment_bank_name', \
-                'payment_bank_type','payment_bank_holder_type', 'billing_address_1', 'billing_address_2', \
-                'billing_address_city', 'billing_address_state', 'billing_address_zip', 'customer_company',\
-                'customer_email', 'customer_phone', 'customer_address_1','customer_address_2', 'customer_address_city',
-                'customer_address_state', 'customer_address_zip', 'customer_notes', 'customer_reference', \
-                'customer_created_at', 'customer_updated_at', 'customer_deleted_at', 'gateway_id', 'gateway_name', \
-                'gateway_type', 'gateway_created_at', 'gateway_deleted_at', 'user_name', 'system_admin', \
-                'user_created_at', 'user_updated_at', 'user_deleted_at']]
-    
-    highticket = highticket.sort_values(by='total', ascending=False)
+  #  dfcalc.to_csv('test.csv', index=False)
 
 
-     #Convert total column to currency format with 0 zero decimal places.
-
-     #Re-order columns as follows:  payment_person name, created_at, total, last_four, type channel, memo, payment_note, reference, no preference to order for remaining columns.
-
-    namecheck = '{}|{}'.format(firstname1,lastname1)   
-
-    if len(firstname2) > 0:
-         namecheck = '|'.join([namecheck, firstname2])
-
-    if len(lastname2) > 0:
-         namecheck = '|'.join([namecheck, lastname2])
-
-    if len(firstname3) > 0:
-         namecheck = '|'.join([namecheck, firstname3])
-
-    if len(lastname3) > 0:
-         namecheck = '|'.join([namecheck, lastname3])
-
-    if len(firstname4) > 0:
-         namecheck = '|'.join([namecheck, firstname4])
-
-    if len(lastname4) > 0:
-         namecheck = '|'.join([namecheck, lastname4])
-
-
-         
-    namefinal = df[(df['payment_person_name'].str.contains(namecheck, case=False))|\
-                   (df['customer_lastname'].str.contains(namecheck, case=False))|\
-                   (df['customer_firstname'].str.contains(namecheck, case=False)) 
-                   ]
-    
-
-
-    namefinal2 = namefinal.loc[:,['payment_person_name', 'customer_firstname', 'customer_lastname', 'created_at', 'total', \
-                'payment_last_four', 'last_four', 'type', 'channel', 'memo', 'payment_note', 'reference', \
-                'payment_method', 'issuer_auth_code', 'payment_card_type', 'payment_card_exp', 'payment_bank_name', \
-                'payment_bank_type','payment_bank_holder_type', 'billing_address_1', 'billing_address_2', \
-                'billing_address_city', 'billing_address_state', 'billing_address_zip', 'customer_company',\
-                'customer_email', 'customer_phone', 'customer_address_1','customer_address_2', 'customer_address_city',
-                'customer_address_state', 'customer_address_zip', 'customer_notes', 'customer_reference', \
-                'customer_created_at', 'customer_updated_at', 'customer_deleted_at', 'gateway_id', 'gateway_name', \
-                'gateway_type', 'gateway_created_at', 'gateway_deleted_at', 'user_name', 'system_admin', \
-                'user_created_at', 'user_updated_at', 'user_deleted_at']]
-
-
-
-#Convert total column to currency format with 0 zero decimal places.
-
-    dup = df.loc[:,['payment_person_name', 'customer_firstname', 'customer_lastname', 'created_at', 'total', \
-                'payment_last_four', 'last_four', 'type', 'channel', 'memo', 'payment_note', 'reference', \
-                'payment_method', 'issuer_auth_code', 'payment_card_type', 'payment_card_exp', 'payment_bank_name', \
-                'payment_bank_type','payment_bank_holder_type', 'billing_address_1', 'billing_address_2', \
-                'billing_address_city', 'billing_address_state', 'billing_address_zip', 'customer_company',\
-                'customer_email', 'customer_phone', 'customer_address_1','customer_address_2', 'customer_address_city',
-                'customer_address_state', 'customer_address_zip', 'customer_notes', 'customer_reference', \
-                'customer_created_at', 'customer_updated_at', 'customer_deleted_at', 'gateway_id', 'gateway_name', \
-                'gateway_type', 'gateway_created_at', 'gateway_deleted_at', 'user_name', 'system_admin', \
-                'user_created_at', 'user_updated_at', 'user_deleted_at']]
-    
-    dup['payment_person_name_next'] = dup['payment_person_name'].shift(1)
-    dup['payment_person_name_prev'] = dup['payment_person_name'].shift(-1)
-    dup['payment_last_four_next'] = dup['payment_last_four'].shift(1)
-    dup['payment_last_four_prev'] = dup['payment_last_four'].shift(-1)
-    dup['created_at_day'] = dup['created_at'].str.split(expand=True)[0]
-    dup['created_at_dayprev'] = dup['created_at_day'].shift(-1)
-    dup['created_at_daynext'] = dup['created_at_day'].shift(1)
-    dup['created_at_time'] = dup['created_at'].str.split(expand=True)[1]
-    dup['totalmins'] = dup['created_at_time'].str.split(pat=":", expand=True)[0].astype(float) * 60 + dup['created_at_time'].str.split(pat=":", expand=True)[1].astype(float)
-    dup['totalminsprev'] = dup['totalmins'].shift(-1)
-    dup['totalminsnext'] = dup['totalmins'].shift(1)
-    dup2 = dup.query('created_at_day == created_at_daynext | created_at_day == created_at_dayprev')
-    dup3 = dup2.query('totalmins < totalminsprev + 60 | totalmins > totalminsnext - 60')
-    dup4 = dup3.query('payment_person_name == payment_person_name_next | \
-            payment_person_name == payment_person_name_prev | \
-            payment_last_four == payment_last_four_next | \
-            payment_last_four == payment_last_four_prev')
-    
-
-    dup4['total'] = dup4['total'].apply('${:,.0f}'.format)
-    namefinal['total'] = namefinal['total'].apply('${:,.0f}'.format)
-    highticket['total'] = highticket['total'].apply('${:,.0f}'.format)
-    df['total'] = df['total'].apply('${:,.0f}'.format)
-
-    # Create a Pandas Excel writer using XlsxWriter as the engine.
     with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
         # Write each dataframe to a different worksheet.
-        df.to_excel(writer, sheet_name='Clean_Data')
+        df3.to_excel(writer, sheet_name='Clean_Data')
         dfcalc.to_excel(writer, sheet_name='Calculations')
-        payment_note_final.to_excel(writer, sheet_name='Flagged_Payment_Notes')
-        memofinal.to_excel(writer, sheet_name='Negative_Memo')
-        pivottablenames.to_excel(writer, sheet_name='Names_Pivot')
-        pivottablelastfour.to_excel(writer, sheet_name='Last_Four_Pivot')
-        pivottablechannel.to_excel(writer, sheet_name='Chanel_Pivot')
-        highticket.to_excel(writer, sheet_name='High_Ticket')
-        namefinal2.to_excel(writer, sheet_name='Flagged_Names')
-        dup4.to_excel(writer, sheet_name='Dup_Trans')
 
         # Close the Pandas Excel writer and output the Excel file to the buffer
         writer.close()
@@ -293,7 +92,7 @@ if uploaded_file is not None:
         st.download_button(
             label="Download Excel worksheets",
             data=buffer,
-            file_name="cleantransactions.xlsx",
+            file_name="refundchargeback.xlsx",
             mime="application/vnd.ms-excel"
         )
 
