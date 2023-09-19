@@ -32,6 +32,27 @@ if uploaded_files:
     newdf = pd.concat([df2, dfbaddates])
     newdf['created_at'] = pd.to_datetime(newdf['created_at']).dt.date
     df3 = newdf.query("payment_method == 'card' | payment_method == 'bank'")
+    df3.drop(['id','merchant_id','user_id','customer_id','subtotal','tax','is_manual','success','donation','tip','meta','pre_auth','updated_at','source', 'issuer_auth_code'], axis=1, inplace=True)
+    df4 = df3.loc[:,['type', 'created_at', 'total', 'payment_person_name', 'customer_firstname', 'customer_lastname',\
+          'payment_last_four', 'last_four', 'payment_method', 'channel', 'memo', 'payment_note', 'reference', \
+          'payment_card_type', 'payment_card_exp', 'payment_bank_name', 'payment_bank_type',\
+          'payment_bank_holder_type', 'billing_address_1', 'billing_address_2','billing_address_city', \
+          'billing_address_state', 'billing_address_zip', 'customer_company','customer_email', 'customer_phone', \
+          'customer_address_1','customer_address_2', 'customer_address_city', 'customer_address_state', \
+          'customer_address_zip', 'customer_notes', 'customer_reference', 'customer_created_at', \
+          'customer_updated_at', 'customer_deleted_at', 'gateway_id', 'gateway_name', 'gateway_type', \
+          'gateway_created_at', 'gateway_deleted_at', 'user_name', 'system_admin', 'user_created_at',\
+          'user_updated_at', 'user_deleted_at']]
+
+
+
+
+
+
+
+
+
+
 
     volume = df3.query("type == 'charge'")
     volumetotal = np.sum(volume['total'])
@@ -59,6 +80,8 @@ if uploaded_files:
                         'Lifetime chargebacks':[chargebackslifetime],
                         'Lifetime volume':[volumetotal],
                         'Lifetime chargeback rate':[Lifetime_chargeback_rate],
+                        '90 Days':[days90],
+                        '180 Days':[days180],
                         })
 
     format_mapping = {'Refunds for past 90 days':'${:,.2f}',
@@ -78,12 +101,16 @@ if uploaded_files:
     for key, value in format_mapping.items():
         dfcalc[key] = dfcalc[key].apply(value.format)
 
+    df4['total'] = df4['total'].apply('${:,.0f}'.format)
+
   #  dfcalc.to_csv('test.csv', index=False)
+
+
 
 
     with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
         # Write each dataframe to a different worksheet.
-        df3.to_excel(writer, sheet_name='Clean_Data')
+        df4.to_excel(writer, sheet_name='Clean_Data')
         dfcalc.to_excel(writer, sheet_name='Calculations')
 
         # Close the Pandas Excel writer and output the Excel file to the buffer
