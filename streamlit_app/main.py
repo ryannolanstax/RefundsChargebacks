@@ -147,6 +147,8 @@ if __name__ == "__main__":
 
     with st.form("my_form", clear_on_submit=True):
         st.text_input("Filename (must include .xlsx)", key="filename")
+        chargebacks180 = st.number_input("Enter Chargebacks For 180 Days", key="chargebacks180")
+        chargebackslifetime = st.number_input("Enter Chargebacks for Lifetime", key="chargebackslifetime")
         uploaded_files = st.file_uploader("Upload CSV", type="csv", accept_multiple_files=True)
         submit = st.form_submit_button("Download dataframe")
 
