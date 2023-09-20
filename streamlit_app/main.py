@@ -68,7 +68,7 @@ def download_df():
         dfbaddates['created_at'] = dfbaddates['created_at'].dt.strftime('%m/%d/%y')
         df.loc[df['created_at'].str.split(expand=True)[1].isna() == False, 'created_at'] = df2['created_at'].str.split(expand=True)[0].str.strip()
         newdf = pd.concat([df2, dfbaddates])
-        newdf['created_at'] = pd.to_datetime(newdf['created_at'], format='%m/%d/%y').dt.date
+        newdf['created_at'] = pd.to_datetime(newdf['created_at'], infer_datetime_format=True).dt.date
         df3 = newdf.query("payment_method == 'card' | payment_method == 'bank'")
         df3.drop(['id','merchant_id','user_id','customer_id','subtotal','tax','is_manual','success','donation','tip','meta','pre_auth','updated_at','source', 'issuer_auth_code'], axis=1, inplace=True)
         df4 = df3.loc[:,['type', 'created_at', 'total', 'payment_person_name', 'customer_firstname', 'customer_lastname',\
