@@ -38,17 +38,8 @@ def download_button(objects_to_download, download_filename):
     # Encode the Excel file to base64 for download
     b64 = base64.b64encode(excel_data).decode()
 
-    dl_link = f"""
-    <html>
-    <head>
-    <title>Start Auto Download file</title>
-    <script src="http://code.jquery.com/jquery-3.2.1.min.js"></script>
-    <script>
-    $('<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="{download_filename}">')[0].click()
-    </script>
-    </head>
-    </html>
-    """
+    dl_link = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="{download_filename}">Download Excel</a>'
+
     return dl_link
 
 def download_df():
@@ -136,10 +127,7 @@ def download_df():
             "Sheet2": dfcalc,
         }
 
-        components.html(
-            download_button(objects_to_download, st.session_state.filename),
-            height=0,
-        )
+        st.markdown(download_button(objects_to_download, st.session_state.filename), unsafe_allow_html=True)
 
 if __name__ == "__main__":
     uploaded_files = None
