@@ -19,28 +19,33 @@ def download_button(objects_to_download, download_filename):
     -------
     (str): the anchor tag to download the Excel file with multiple sheets
     """
-    # Create an in-memory Excel writer
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as excel_writer:
-        for sheet_name, object_to_download in objects_to_download.items():
-            if isinstance(object_to_download, pd.DataFrame):
-                # Write DataFrame as a sheet
-                object_to_download.to_excel(excel_writer, sheet_name=sheet_name, index=False)
-            else:
-                # Convert other objects to a DataFrame and write as a sheet
-                df = pd.DataFrame({"Data": [object_to_download]})
-                df.to_excel(excel_writer, sheet_name=sheet_name, index=False)
+    try:
+        # Create an in-memory Excel writer
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as excel_writer:
+            for sheet_name, object_to_download in objects_to_download.items():
+                if isinstance(object_to_download, pd.DataFrame):
+                    # Write DataFrame as a sheet
+                    object_to_download.to_excel(excel_writer, sheet_name=sheet_name, index=False)
+                else:
+                    # Convert other objects to a DataFrame and write as a sheet
+                    df = pd.DataFrame({"Data": [object_to_download]})
+                    df.to_excel(excel_writer, sheet_name=sheet_name, index=False)
 
-    # Seek to the beginning of the in-memory stream
-    output.seek(0)
-    excel_data = output.read()
+        # Seek to the beginning of the in-memory stream
+        output.seek(0)
+        excel_data = output.read()
 
-    # Encode the Excel file to base64 for download
-    b64 = base64.b64encode(excel_data).decode()
+        # Encode the Excel file to base64 for download
+        b64 = base64.b64encode(excel_data).decode()
 
-    dl_link = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="{download_filename}">Download Excel</a>'
+        dl_link = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="{download_filename}">Download Excel</a>'
 
-    return dl_link
+        return dl_link
+    except Exception as e:
+        # Log the error and return an error message
+        st.error(f"An error occurred during file generation: {e}")
+        return None
 
 def download_df():
     if uploaded_files:
@@ -127,7 +132,11 @@ def download_df():
             "Sheet2": dfcalc,
         }
 
-        st.markdown(download_button(objects_to_download, st.session_state.filename), unsafe_allow_html=True)
+        download_link = download_button(objects_to_download, st.session_state.filename)
+        if download_link:
+            st.markdown(download_link, unsafe_allow_html=True)
+        else:
+            st.error("File download failed.")
 
 if __name__ == "__main__":
     uploaded_files = None
