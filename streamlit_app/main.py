@@ -4,16 +4,9 @@ import pandas as pd
 import base64
 import json
 import numpy as np
-import io
 import datetime
-import xlsxwriter
 from datetime import date, timedelta
 import io
-import os
-import shutil  # Import shutil module
-
-global st_object
-st_object = None
 
 def download_button(objects_to_download, download_filename):
     """
@@ -26,36 +19,24 @@ def download_button(objects_to_download, download_filename):
     -------
     (str): the anchor tag to download the Excel file with multiple sheets
     """
-    # Create a temporary directory for saving the Excel file
-    temp_dir = "temp_excel_download"
-    os.makedirs(temp_dir, exist_ok=True)
+    # Create an in-memory Excel writer
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as excel_writer:
+        for sheet_name, object_to_download in objects_to_download.items():
+            if isinstance(object_to_download, pd.DataFrame):
+                # Write DataFrame as a sheet
+                object_to_download.to_excel(excel_writer, sheet_name=sheet_name, index=False)
+            else:
+                # Convert other objects to a DataFrame and write as a sheet
+                df = pd.DataFrame({"Data": [object_to_download]})
+                df.to_excel(excel_writer, sheet_name=sheet_name, index=False)
 
-    # Define the temporary Excel file path
-    temp_excel_path = os.path.join(temp_dir, download_filename)
-
-    # Create an Excel writer with the desired filename
-    excel_writer = pd.ExcelWriter(temp_excel_path, engine='xlsxwriter')
-
-    # Iterate through the objects and write each as a separate sheet
-    for sheet_name, object_to_download in objects_to_download.items():
-        if isinstance(object_to_download, pd.DataFrame):
-            # Write DataFrame as a sheet
-            object_to_download.to_excel(excel_writer, sheet_name=sheet_name, index=False)
-        else:
-            # Convert other objects to a DataFrame and write as a sheet
-            df = pd.DataFrame({"Data": [object_to_download]})
-            df.to_excel(excel_writer, sheet_name=sheet_name, index=False)
-
-    # Explicitly close the Excel writer
-    excel_writer.close()
+    # Seek to the beginning of the in-memory stream
+    output.seek(0)
+    excel_data = output.read()
 
     # Encode the Excel file to base64 for download
-    with open(temp_excel_path, 'rb') as excel_file:
-        excel_data = excel_file.read()
-        b64 = base64.b64encode(excel_data).decode()
-
-    # Clean up: remove the temporary directory and file using shutil.rmtree
-    shutil.rmtree(temp_dir)
+    b64 = base64.b64encode(excel_data).decode()
 
     dl_link = f"""
     <html>
@@ -71,9 +52,6 @@ def download_button(objects_to_download, download_filename):
     return dl_link
 
 def download_df():
-    # Access the global st_object to use Streamlit functions
-    st = st_object
-
     if uploaded_files:
         for file in uploaded_files:
             file.seek(0)
@@ -158,31 +136,19 @@ def download_df():
             "Sheet2": dfcalc,
         }
 
-        # Get the filename from the session state
-        filename = st.session_state.filename
-
         components.html(
-          download_button(objects_to_download, filename),  # Pass the filename here
-          height=0,
+            download_button(objects_to_download, st.session_state.filename),
+            height=0,
         )
 
 if __name__ == "__main__":
     uploaded_files = None
-    chargebacks180 = None
-    chargebackslifetime = None
-
-    st.title("Refund Chargeback Calculations")
+    st.title("Streamlit Example2")
 
     with st.form("my_form", clear_on_submit=True):
         st.text_input("Filename (must include .xlsx)", key="filename")
-        chargebacks180 = st.number_input("Enter Chargebacks For 180 Days", key="chargebacks180")
-        chargebackslifetime = st.number_input("Enter Chargebacks for Lifetime", key="chargebackslifetime")
         uploaded_files = st.file_uploader("Upload CSV", type="csv", accept_multiple_files=True)
         submit = st.form_submit_button("Download dataframe")
 
-    # Set the global st_object to the current st object
-    st_object = st
-
     if submit:
-        # Call the download_df function to generate the download link
         download_df()
