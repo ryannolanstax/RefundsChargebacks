@@ -3,5 +3,5 @@ pandas==2.1.0
 streamlit==1.26.0
 XlsxWriter==3.1.2
 datetime==5.2
-base64==22.0.3
+base64==23.2.1
 shutil
