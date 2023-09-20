@@ -1,74 +1,124 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
+import base64
+import json
 import numpy as np
 import io
 import datetime
 import xlsxwriter
 from datetime import date, timedelta
+import io
+import os
+import shutil  # Import shutil module
 
-chargebacks180 = st.number_input("Enter Chargebacks For 180 Days", key="chargebacks180")
-chargebackslifetime = st.number_input("Enter Chargebacks for Lifetime", key="chargebackslifetime")
+global st_object
+st_object = None
 
-uploaded_files = st.file_uploader("Upload CSV", type="csv", accept_multiple_files=True)
+def download_button(objects_to_download, download_filename):
+    """
+    Generates a link to download the given objects_to_download as separate sheets in an Excel file.
+    Params:
+    ------
+    objects_to_download (dict): A dictionary where keys are sheet names and values are objects to be downloaded.
+    download_filename (str): filename and extension of the Excel file. e.g. mydata.xlsx
+    Returns:
+    -------
+    (str): the anchor tag to download the Excel file with multiple sheets
+    """
+    # Create a temporary directory for saving the Excel file
+    temp_dir = "temp_excel_download"
+    os.makedirs(temp_dir, exist_ok=True)
 
-if uploaded_files:
-    for file in uploaded_files:
-        file.seek(0)
-    uploaded_data_read = [pd.read_csv(file) for file in uploaded_files]
-    df = pd.concat(uploaded_data_read)
+    # Define the temporary Excel file path
+    temp_excel_path = os.path.join(temp_dir, download_filename)
 
-    buffer = io.BytesIO()
+    # Create an Excel writer with the desired filename
+    excel_writer = pd.ExcelWriter(temp_excel_path, engine='xlsxwriter')
 
+    # Iterate through the objects and write each as a separate sheet
+    for sheet_name, object_to_download in objects_to_download.items():
+        if isinstance(object_to_download, pd.DataFrame):
+            # Write DataFrame as a sheet
+            object_to_download.to_excel(excel_writer, sheet_name=sheet_name, index=False)
+        else:
+            # Convert other objects to a DataFrame and write as a sheet
+            df = pd.DataFrame({"Data": [object_to_download]})
+            df.to_excel(excel_writer, sheet_name=sheet_name, index=False)
 
-    days90 = date.today() - timedelta(days=90)
-    days180 = date.today() - timedelta(days=180)
+    # Explicitly close the Excel writer
+    excel_writer.close()
 
-    df2 = df[df['created_at'].str.split(expand=True)[1].isna() == False]
-    dfbaddates = df[df['created_at'].str.split(expand=True)[1].isna() == True]
+    # Encode the Excel file to base64 for download
+    with open(temp_excel_path, 'rb') as excel_file:
+        excel_data = excel_file.read()
+        b64 = base64.b64encode(excel_data).decode()
 
-    dfbaddates['created_at'] = dfbaddates['created_at'].apply(lambda x: datetime.datetime(1900, 1, 1, 0, 0, 0) + datetime.timedelta(days=float(x)))
-    dfbaddates['created_at'] = dfbaddates['created_at'].dt.strftime('%m/%d/%y')
-    df2['created_at'] = df2['created_at'].str.split(expand=True)[0].str.strip() 
-    newdf = pd.concat([df2, dfbaddates])
-    newdf['created_at'] = pd.to_datetime(newdf['created_at']).dt.date
-    df3 = newdf.query("payment_method == 'card' | payment_method == 'bank'")
-    df3.drop(['id','merchant_id','user_id','customer_id','subtotal','tax','is_manual','success','donation','tip','meta','pre_auth','updated_at','source', 'issuer_auth_code'], axis=1, inplace=True)
-    df4 = df3.loc[:,['type', 'created_at', 'total', 'payment_person_name', 'customer_firstname', 'customer_lastname',\
-          'payment_last_four', 'last_four', 'payment_method', 'channel', 'memo', 'payment_note', 'reference', \
-          'payment_card_type', 'payment_card_exp', 'payment_bank_name', 'payment_bank_type',\
-          'payment_bank_holder_type', 'billing_address_1', 'billing_address_2','billing_address_city', \
-          'billing_address_state', 'billing_address_zip', 'customer_company','customer_email', 'customer_phone', \
-          'customer_address_1','customer_address_2', 'customer_address_city', 'customer_address_state', \
-          'customer_address_zip', 'customer_notes', 'customer_reference', 'customer_created_at', \
-          'customer_updated_at', 'customer_deleted_at', 'gateway_id', 'gateway_name', 'gateway_type', \
-          'gateway_created_at', 'gateway_deleted_at', 'user_name', 'system_admin', 'user_created_at',\
-          'user_updated_at', 'user_deleted_at']]
+    # Clean up: remove the temporary directory and file using shutil.rmtree
+    shutil.rmtree(temp_dir)
 
+    dl_link = f"""
+    <html>
+    <head>
+    <title>Start Auto Download file</title>
+    <script src="http://code.jquery.com/jquery-3.2.1.min.js"></script>
+    <script>
+    $('<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="{download_filename}">')[0].click()
+    </script>
+    </head>
+    </html>
+    """
+    return dl_link
 
+def download_df():
+    # Access the global st_object to use Streamlit functions
+    st = st_object
 
+    if uploaded_files:
+        for file in uploaded_files:
+            file.seek(0)
+        uploaded_data_read = [pd.read_csv(file) for file in uploaded_files]
+        df = pd.concat(uploaded_data_read)
 
+        days90 = date.today() - timedelta(days=90)
+        days180 = date.today() - timedelta(days=180)
 
+        df2 = df[df['created_at'].str.split(expand=True)[1].isna() == False]
+        dfbaddates = df[df['created_at'].str.split(expand=True)[1].isna() == True]
 
+        dfbaddates['created_at'] = dfbaddates['created_at'].apply(lambda x: datetime.datetime(1900, 1, 1, 0, 0, 0) + datetime.timedelta(days=float(x)))
+        dfbaddates['created_at'] = dfbaddates['created_at'].dt.strftime('%m/%d/%y')
+        df2['created_at'] = df2['created_at'].str.split(expand=True)[0].str.strip() 
+        newdf = pd.concat([df2, dfbaddates])
+        newdf['created_at'] = pd.to_datetime(newdf['created_at']).dt.date
+        df3 = newdf.query("payment_method == 'card' | payment_method == 'bank'")
+        df3.drop(['id','merchant_id','user_id','customer_id','subtotal','tax','is_manual','success','donation','tip','meta','pre_auth','updated_at','source', 'issuer_auth_code'], axis=1, inplace=True)
+        df4 = df3.loc[:,['type', 'created_at', 'total', 'payment_person_name', 'customer_firstname', 'customer_lastname',\
+            'payment_last_four', 'last_four', 'payment_method', 'channel', 'memo', 'payment_note', 'reference', \
+            'payment_card_type', 'payment_card_exp', 'payment_bank_name', 'payment_bank_type',\
+            'payment_bank_holder_type', 'billing_address_1', 'billing_address_2','billing_address_city', \
+            'billing_address_state', 'billing_address_zip', 'customer_company','customer_email', 'customer_phone', \
+            'customer_address_1','customer_address_2', 'customer_address_city', 'customer_address_state', \
+            'customer_address_zip', 'customer_notes', 'customer_reference', 'customer_created_at', \
+            'customer_updated_at', 'customer_deleted_at', 'gateway_id', 'gateway_name', 'gateway_type', \
+            'gateway_created_at', 'gateway_deleted_at', 'user_name', 'system_admin', 'user_created_at',\
+            'user_updated_at', 'user_deleted_at']]
 
+        volume = df3.query("type == 'charge'")
+        volumetotal = np.sum(volume['total'])
+        volume90 = np.sum(volume[volume['created_at'] > days90]['total'])
+        volume180 = np.sum(volume[volume['created_at'] > days180]['total'])
 
+        refund = df3.query("type == 'refund'")
+        refundtotal = np.sum(refund['total'])
+        refund90 = np.sum(refund[refund['created_at'] > days90]['total'])
 
+        Lifetime_refund_rate = (refundtotal / volumetotal)
+        day90_refund_rate = (refund90/volume90)
+        Lifetime_chargeback_rate = (chargebackslifetime / volumetotal)
+        day180_chargeback_rate = (chargebacks180/volume180)
 
-
-    volume = df3.query("type == 'charge'")
-    volumetotal = np.sum(volume['total'])
-    volume90 = np.sum(volume[volume['created_at'] > days90]['total'])
-    volume180 = np.sum(volume[volume['created_at'] > days180]['total'])
-
-    refund = df3.query("type == 'refund'")
-    refundtotal = np.sum(refund['total'])
-    refund90 = np.sum(refund[refund['created_at'] > days90]['total'])
-
-    Lifetime_refund_rate = (refundtotal / volumetotal)
-    day90_refund_rate = (refund90/volume90)
-    Lifetime_chargeback_rate = (chargebackslifetime / volumetotal)
-    day180_chargeback_rate = (chargebacks180/volume180)
-
-    dfcalc = pd.DataFrame({'Refunds for past 90 days':[refund90],
+        dfcalc = pd.DataFrame({'Refunds for past 90 days':[refund90],
                         '90 day volume':[volume90],
                         '90 day refund rate':[day90_refund_rate],
                         'Lifetime refunds':[refundtotal],
@@ -84,7 +134,7 @@ if uploaded_files:
                         '180 Days':[days180],
                         })
 
-    format_mapping = {'Refunds for past 90 days':'${:,.2f}',
+        format_mapping = {'Refunds for past 90 days':'${:,.2f}',
                         '90 day volume':'${:,.2f}',
                         '90 day refund rate':'{:.2%}',
                         'Lifetime refunds':'${:,.2f}',
@@ -98,30 +148,41 @@ if uploaded_files:
                         'Lifetime chargeback rate':'{:.2%}',
                         }
 
-    for key, value in format_mapping.items():
-        dfcalc[key] = dfcalc[key].apply(value.format)
+        for key, value in format_mapping.items():
+            dfcalc[key] = dfcalc[key].apply(value.format)
 
-    df4['total'] = df4['total'].apply('${:,.0f}'.format)
+        df4['total'] = df4['total'].apply('${:,.0f}'.format)
 
-  #  dfcalc.to_csv('test.csv', index=False)
+        objects_to_download = {
+            "Sheet1": df4,
+            "Sheet2": dfcalc,
+        }
 
+        # Get the filename from the session state
+        filename = st.session_state.filename
 
-
-
-    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-        # Write each dataframe to a different worksheet.
-        df4.to_excel(writer, sheet_name='Clean_Data')
-        dfcalc.to_excel(writer, sheet_name='Calculations')
-
-        # Close the Pandas Excel writer and output the Excel file to the buffer
-        writer.close()
-
-        st.download_button(
-            label="Download Excel worksheets",
-            data=buffer,
-            file_name="refundchargeback.xlsx",
-            mime="application/vnd.ms-excel"
+        components.html(
+          download_button(objects_to_download, filename),  # Pass the filename here
+          height=0,
         )
 
-else:
-   st.warning("you need to upload a csv file.")
+if __name__ == "__main__":
+    uploaded_files = None
+    chargebacks180 = None
+    chargebackslifetime = None
+
+    st.title("Refund Chargeback Calculations")
+
+    with st.form("my_form", clear_on_submit=True):
+        st.text_input("Filename (must include .xlsx)", key="filename")
+        chargebacks180 = st.number_input("Enter Chargebacks For 180 Days", key="chargebacks180")
+        chargebackslifetime = st.number_input("Enter Chargebacks for Lifetime", key="chargebackslifetime")
+        uploaded_files = st.file_uploader("Upload CSV", type="csv", accept_multiple_files=True)
+        submit = st.form_submit_button("Download dataframe")
+
+    # Set the global st_object to the current st object
+    st_object = st
+
+    if submit:
+        # Call the download_df function to generate the download link
+        download_df()
