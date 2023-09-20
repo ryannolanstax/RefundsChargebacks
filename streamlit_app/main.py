@@ -62,13 +62,13 @@ def download_df():
         days180 = date.today() - timedelta(days=180)
 
         df2 = df[df['created_at'].str.split(expand=True)[1].isna() == False]
-        dfbaddates = df[df['created_at'].str.split(expand=True)[1].isna() == True]
+        dfbaddates = df[df['created_at'].str.split(expand=True)[1].isna() == True].copy()
 
         dfbaddates['created_at'] = dfbaddates['created_at'].apply(lambda x: datetime.datetime(1900, 1, 1, 0, 0, 0) + datetime.timedelta(days=float(x)))
         dfbaddates['created_at'] = dfbaddates['created_at'].dt.strftime('%m/%d/%y')
-        df2['created_at'] = df2['created_at'].str.split(expand=True)[0].str.strip() 
+        df2['created_at'] = df2['created_at'].str.split(expand=True)[0].str.strip().copy() 
         newdf = pd.concat([df2, dfbaddates])
-        newdf['created_at'] = pd.to_datetime(newdf['created_at']).dt.date
+        newdf['created_at'] = pd.to_datetime(newdf['created_at'], format='%m/%d/%y').dt.date
         df3 = newdf.query("payment_method == 'card' | payment_method == 'bank'")
         df3.drop(['id','merchant_id','user_id','customer_id','subtotal','tax','is_manual','success','donation','tip','meta','pre_auth','updated_at','source', 'issuer_auth_code'], axis=1, inplace=True)
         df4 = df3.loc[:,['type', 'created_at', 'total', 'payment_person_name', 'customer_firstname', 'customer_lastname',\
