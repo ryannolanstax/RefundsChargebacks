@@ -26,11 +26,11 @@ def download_button(objects_to_download, download_filename):
             for sheet_name, object_to_download in objects_to_download.items():
                 if isinstance(object_to_download, pd.DataFrame):
                     # Write DataFrame as a sheet
-                    object_to_download.to_excel(excel_writer, sheet_name=sheet_name, index=False)
+                    object_to_download.to_excel(excel_writer, sheet_name=sheet_name)
                 else:
                     # Convert other objects to a DataFrame and write as a sheet
                     df = pd.DataFrame({"Data": [object_to_download]})
-                    df.to_excel(excel_writer, sheet_name=sheet_name, index=False)
+                    df.to_excel(excel_writer, sheet_name=sheet_name)
 
         # Seek to the beginning of the in-memory stream
         output.seek(0)
@@ -92,6 +92,208 @@ def download_df():
         Lifetime_chargeback_rate = (chargebackslifetime / volumetotal)
         day180_chargeback_rate = (chargebacks180/volume180)
 
+
+        #####################################
+
+        d = date.today()
+        var_names = ["CurrentMonth", "PastMonth", "PastMonth2", "PastMonth3", "PastMonth4", "PastMonth5", "PastMonth6"]
+        count = 0
+        for name in var_names:
+            month, year = (d.month-count, d.year) if d.month != 1 else (12, d.year-1)
+            globals()[name] = d.replace(day=1, month=month, year=year)
+            count += 1
+
+        volume = df3.query("type == 'charge'")
+
+        volumetotal = np.sum(volume['total'])
+
+        volumeCurrentMonth = np.sum(volume[volume['created_at'] >= CurrentMonth]['total'])
+
+        volumePastMonth = np.sum(volume[volume['created_at'] >= PastMonth]['total']) - volumeCurrentMonth
+
+        volumePastMonth2 = np.sum(volume[volume['created_at'] >= PastMonth2]['total']) - volumeCurrentMonth - volumePastMonth
+
+        volumePastMonth3 = np.sum(volume[volume['created_at'] >= PastMonth3]['total']) - volumeCurrentMonth - volumePastMonth - volumePastMonth2
+
+        volumePastMonth4 = np.sum(volume[volume['created_at'] >= PastMonth4]['total']) - volumeCurrentMonth - volumePastMonth - volumePastMonth2 - volumePastMonth3
+
+        volumePastMonth5 = np.sum(volume[volume['created_at'] >= PastMonth5]['total']) - volumeCurrentMonth - volumePastMonth - volumePastMonth2 - volumePastMonth3 - volumePastMonth4
+
+        volumePastMonth6 = np.sum(volume[volume['created_at'] >= PastMonth6]['total']) - volumeCurrentMonth - volumePastMonth - volumePastMonth2 - volumePastMonth3 - volumePastMonth4 - volumePastMonth5
+
+        volume6monthtotal = np.sum(volume[volume['created_at'] >= PastMonth6]['total'])
+
+        dfsalesvolume = pd.DataFrame({'Past Month 6':[volumePastMonth6],
+                                    'Past Month 5':[volumePastMonth5],
+                                    'Past Month 4':[volumePastMonth4],
+                                    'Past Month 3':[volumePastMonth3],
+                                    'Past Month 2':[volumePastMonth2],
+                                    'Past Month 1':[volumePastMonth],
+                                    'Current Month To Date':[volumeCurrentMonth],
+                                    '6 month total':[volume6monthtotal],
+                                    'lifetime_total':[volumetotal]
+                            }, index=['Sales_Amount'])
+
+        volumecounttotal = np.count_nonzero(volume['total'])
+
+        countCurrentMonth = np.count_nonzero(volume[volume['created_at'] >= CurrentMonth]['total'])
+
+        countPastMonth = np.count_nonzero(volume[volume['created_at'] >= PastMonth]['total']) - countCurrentMonth
+
+        countPastMonth2 = np.count_nonzero(volume[volume['created_at'] >= PastMonth2]['total']) - countCurrentMonth - countPastMonth
+
+        countPastMonth3 = np.count_nonzero(volume[volume['created_at'] >= PastMonth3]['total']) - countCurrentMonth - countPastMonth - countPastMonth2
+
+        countPastMonth4 = np.count_nonzero(volume[volume['created_at'] >= PastMonth4]['total']) - countCurrentMonth - countPastMonth - countPastMonth2 - countPastMonth3
+
+        countPastMonth5 = np.count_nonzero(volume[volume['created_at'] >= PastMonth5]['total']) - countCurrentMonth - countPastMonth - countPastMonth2 - countPastMonth3 - countPastMonth4
+
+        countPastMonth6 = np.count_nonzero(volume[volume['created_at'] >= PastMonth6]['total']) - countCurrentMonth - countPastMonth - countPastMonth2 - countPastMonth3 - countPastMonth4 - countPastMonth5
+
+        counttotalPastMonth6 = np.count_nonzero(volume[volume['created_at'] >= PastMonth6]['total'])
+
+        dfsalescount = pd.DataFrame({'Past Month 6':[countPastMonth6],
+                                    'Past Month 5':[countPastMonth5],
+                                    'Past Month 4':[countPastMonth4],
+                                    'Past Month 3':[countPastMonth3],
+                                    'Past Month 2':[countPastMonth2],
+                                    'Past Month 1':[countPastMonth],
+                                    'Current Month To Date':[countCurrentMonth],
+                                    '6 month total':[counttotalPastMonth6],
+                                    'lifetime_total':[volumecounttotal]
+                            }, index=['Sales_Count'])
+
+        volume90 = np.sum(volume[volume['created_at'] > days90]['total'])
+
+        volume180 = np.sum(volume[volume['created_at'] > days180]['total'])
+
+        #Refund Values
+
+        refund = df3.query("type == 'refund'")
+
+        refundtotal = np.sum(refund['total'])
+
+        refundCurrentMonth = np.sum(refund[refund['created_at'] >= CurrentMonth]['total'])
+
+        refundPastMonth = np.sum(refund[refund['created_at'] >= PastMonth]['total']) - refundCurrentMonth
+
+        refundPastMonth2 = np.sum(refund[refund['created_at'] >= PastMonth2]['total']) - refundCurrentMonth - refundPastMonth
+
+        refundPastMonth3 = np.sum(refund[refund['created_at'] >= PastMonth3]['total']) - refundCurrentMonth - refundPastMonth - refundPastMonth2
+
+        refundPastMonth4 = np.sum(refund[refund['created_at'] >= PastMonth4]['total']) - refundCurrentMonth - refundPastMonth - refundPastMonth2 - refundPastMonth3
+
+        refundPastMonth5 = np.sum(refund[refund['created_at'] >= PastMonth5]['total']) - refundCurrentMonth - refundPastMonth - refundPastMonth2 - refundPastMonth3 - refundPastMonth4
+
+        refundPastMonth6 = np.sum(refund[refund['created_at'] >= PastMonth6]['total']) - refundCurrentMonth - refundPastMonth - refundPastMonth2 - refundPastMonth3 - refundPastMonth4 - refundPastMonth5
+
+        refundtotalPastMonth6 = np.sum(refund[refund['created_at'] >= PastMonth6]['total'])
+
+        dfrefundamount = pd.DataFrame({'Past Month 6':[refundPastMonth6],
+                                    'Past Month 5':[refundPastMonth5],
+                                    'Past Month 4':[refundPastMonth4],
+                                    'Past Month 3':[refundPastMonth3],
+                                    'Past Month 2':[refundPastMonth2],
+                                    'Past Month 1':[refundPastMonth],
+                                    'Current Month To Date':[refundCurrentMonth],
+                                    '6 month total':[refundtotalPastMonth6],
+                                    'lifetime_total':[refundtotal]
+                            }, index=['Refund_Amount'])
+
+        refundcounttotal = np.count_nonzero(refund['total'])
+
+        refundCountCurrentMonth = np.count_nonzero(refund[refund['created_at'] >= CurrentMonth]['total'])
+
+        refundCountPastMonth = np.count_nonzero(refund[refund['created_at'] >= PastMonth]['total']) - refundCountCurrentMonth
+
+        refundCountPastMonth2 = np.count_nonzero(refund[refund['created_at'] >= PastMonth2]['total']) - refundCountCurrentMonth - refundCountPastMonth
+
+        refundCountPastMonth3 = np.count_nonzero(refund[refund['created_at'] >= PastMonth3]['total']) - refundCountCurrentMonth - refundCountPastMonth - refundCountPastMonth2
+
+        refundCountPastMonth4 = np.count_nonzero(refund[refund['created_at'] >= PastMonth4]['total']) - refundCountCurrentMonth - refundCountPastMonth - refundCountPastMonth2 - refundCountPastMonth3
+
+        refundCountPastMonth5 = np.count_nonzero(refund[refund['created_at'] >= PastMonth5]['total']) - refundCountCurrentMonth - refundCountPastMonth - refundCountPastMonth2 - refundCountPastMonth3 - refundCountPastMonth4
+
+        refundCountPastMonth6 = np.count_nonzero(refund[refund['created_at'] >= PastMonth6]['total']) - refundCountCurrentMonth - refundCountPastMonth - refundCountPastMonth2 - refundCountPastMonth3 - refundCountPastMonth4 - refundCountPastMonth5
+
+        refundCounttotalPastMonth6 = np.count_nonzero(refund[refund['created_at'] >= PastMonth6]['total'])
+
+        dfrefundcount = pd.DataFrame({'Past Month 6':[refundCountPastMonth6],
+                                    'Past Month 5':[refundCountPastMonth5],
+                                    'Past Month 4':[refundCountPastMonth4],
+                                    'Past Month 3':[refundCountPastMonth3],
+                                    'Past Month 2':[refundCountPastMonth2],
+                                    'Past Month 1':[refundCountPastMonth],
+                                    'Current Month To Date':[refundCountCurrentMonth],
+                                    '6 month total':[refundCounttotalPastMonth6],
+                                    'lifetime_total':[refundcounttotal]
+                            }, index=['Refund_Count'])
+
+        #Average Ticket
+
+        avgcounttotal = np.average(volume['total'])
+
+        avgCurrentMonth = np.average(volume[volume['created_at'] >= CurrentMonth]['total'])
+
+        avgPastMonth = np.average(volume[(volume['created_at'] >= PastMonth) & (volume['created_at'] < CurrentMonth) ]['total'])
+
+        avgPastMonth2 = np.average(volume[(volume['created_at'] >= PastMonth2) & (volume['created_at'] < PastMonth)  ]['total'])
+
+        avgPastMonth3 = np.average(volume[(volume['created_at'] >= PastMonth3) &  (volume['created_at'] < PastMonth2)]['total'])
+
+        avgPastMonth4 = np.average(volume[(volume['created_at'] >= PastMonth4) &  (volume['created_at'] < PastMonth3)]['total'])
+
+        avgPastMonth5 = np.average(volume[(volume['created_at'] >= PastMonth5) & (volume['created_at'] < PastMonth4)]['total'])
+
+        avgPastMonth6 = np.average(volume[(volume['created_at'] >= PastMonth6) & (volume['created_at'] < PastMonth5)]['total'])
+
+        avgtotalPastMonth6 = np.average(volume[volume['created_at'] >= PastMonth6]['total'])
+
+        dfavgsalescount = pd.DataFrame({'Past Month 6':[avgPastMonth6],
+                                    'Past Month 5':[avgPastMonth5],
+                                    'Past Month 4':[avgPastMonth4],
+                                    'Past Month 3':[avgPastMonth3],
+                                    'Past Month 2':[avgPastMonth2],
+                                    'Past Month 1':[avgPastMonth],
+                                    'Current Month To Date':[avgCurrentMonth],
+                                    '6 month total':[avgcounttotal],
+                                    'lifetime_total':[avgtotalPastMonth6]
+                            }, index=['Average_Ticket'])
+
+        #add in high ticket
+
+        highesttran = np.max(volume['total'])
+
+        highesttranCurrentMonth = np.max(volume[volume['created_at'] >= CurrentMonth]['total'])
+
+        highesttranPastMonth = np.max(volume[(volume['created_at'] >= PastMonth) & (volume['created_at'] < CurrentMonth) ]['total'])
+
+        highesttranPastMonth2 = np.max(volume[(volume['created_at'] >= PastMonth2) & (volume['created_at'] < PastMonth)  ]['total'])
+
+        highesttranPastMonth3 = np.max(volume[(volume['created_at'] >= PastMonth3) &  (volume['created_at'] < PastMonth2)]['total'])
+
+        highesttranPastMonth4 = np.max(volume[(volume['created_at'] >= PastMonth4) &  (volume['created_at'] < PastMonth3)]['total'])
+
+        highesttranPastMonth5 = np.max(volume[(volume['created_at'] >= PastMonth5) & (volume['created_at'] < PastMonth4)]['total'])
+
+        highesttranPastMonth6 = np.max(volume[(volume['created_at'] >= PastMonth6) & (volume['created_at'] < PastMonth5)]['total'])
+
+        highesttrantotalPastMonth6 = np.max(volume[volume['created_at'] >= PastMonth6]['total'])
+
+        dfhighesttrans = pd.DataFrame({'Past Month 6':[highesttranPastMonth6],
+                                    'Past Month 5':[highesttranPastMonth5],
+                                    'Past Month 4':[highesttranPastMonth4],
+                                    'Past Month 3':[highesttranPastMonth3],
+                                    'Past Month 2':[highesttranPastMonth2],
+                                    'Past Month 1':[highesttranPastMonth],
+                                    'Current Month To Date':[highesttranCurrentMonth],
+                                    '6 month total':[highesttrantotalPastMonth6],
+                                    'lifetime_total':[highesttran]
+                            }, index=['Highest_Transactions'])
+
+        dflastersresults = pd.concat([dfsalesvolume, dfsalescount, dfrefundamount, dfrefundcount, dfavgsalescount, dfhighesttrans], axis=0)
+
+
         dfcalc = pd.DataFrame({'Refunds for past 90 days':[refund90],
                         '90 day volume':[volume90],
                         '90 day refund rate':[day90_refund_rate],
@@ -127,9 +329,11 @@ def download_df():
 
         df4['total'] = df4['total'].apply('${:,.0f}'.format)
 
+
         objects_to_download = {
             "Sheet1": df4,
-            "Sheet2": dfcalc,
+            "Sheet2": dflastersresults,
+            "Sheet3": dfcalc,
         }
 
         download_link = download_button(objects_to_download, st.session_state.filename)
