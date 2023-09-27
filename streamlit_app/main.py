@@ -291,8 +291,121 @@ def download_df():
                                     '6 month total':[highesttrantotalPastMonth6],
                                     'lifetime_total':[highesttran]
                             }, index=['Highest_Transactions'])
+        
+        if volumePastMonth6 > 0: 
+            refundamountmonth6 = 100.00 * (refundPastMonth6 / volumePastMonth6)
+        else: 
+            refundamountmonth6 = 0
 
-        dflastersresults = pd.concat([dfsalesvolume, dfsalescount, dfrefundamount, dfrefundcount, dfavgsalescount, dfhighesttrans], axis=0)
+        if volumePastMonth5 > 0: 
+            refundamountmonth5 = 100.00 * (refundPastMonth5 / volumePastMonth5)
+        else: 
+            refundamountmonth5 = 0
+
+        if volumePastMonth4 > 0: 
+            refundamountmonth4 = 100.00 * (refundPastMonth4 / volumePastMonth4)
+        else: 
+            refundamountmonth4 = 0
+
+        if volumePastMonth3 > 0: 
+            refundamountmonth3 = 100.00 * (refundPastMonth3 / volumePastMonth3)
+        else: 
+            refundamountmonth3 = 0
+
+        if volumePastMonth2 > 0: 
+            refundamountmonth2 = 100.00 * (refundPastMonth2 / volumePastMonth2)
+        else: 
+            refundamountmonth2 = 0
+
+        if volumePastMonth > 0: 
+            refundamountmonth = 100.00 * (refundPastMonth / volumePastMonth)
+        else: 
+            refundamountmonth = 0
+
+        if volumeCurrentMonth > 0: 
+            refundamountcurrentmonth = 100.00 * (refundCurrentMonth / volumeCurrentMonth)
+        else: 
+            refundamountcurrentmonth = 0
+
+        if volume6monthtotal > 0: 
+            refundamount6month = 100.00 * (refundtotalPastMonth6 / volume6monthtotal)
+        else: 
+            refundamount6month = 0
+
+        if volumetotal > 0: 
+            refundamounttotal = 100.00 * (refundtotal / volumetotal)
+        else: 
+            refundamounttotal = 0
+
+        dfrefundamountpercent = pd.DataFrame({'Past Month 6':[refundamountmonth6],
+                             'Past Month 5':[refundamountmonth5],
+                             'Past Month 4':[refundamountmonth4],
+                             'Past Month 3':[refundamountmonth3],
+                             'Past Month 2':[refundamountmonth2],
+                             'Past Month 1':[refundamountmonth],
+                             'Current Month To Date':[refundamountcurrentmonth],
+                             '6 month total':[refundamount6month],
+                             'lifetime_total':[refundamounttotal]
+                       }, index=['Refund_Amount_Ratio'])
+        
+        if countPastMonth6 > 0: 
+            refundcountpercentmonth6 = 100.00 * (refundCountPastMonth6 / countPastMonth6)
+        else: 
+            refundcountpercentmonth6 = 0
+
+        if countPastMonth5 > 0: 
+            refundcountpercentmonth5 = 100.00 * (refundCountPastMonth5 / countPastMonth5)
+        else: 
+            refundcountpercentmonth5 = 0
+
+        if countPastMonth4 > 0: 
+            refundcountpercentmonth4 = 100.00 * (refundCountPastMonth4 / countPastMonth4)
+        else: 
+            refundcountpercentmonth4 = 0
+
+        if countPastMonth3 > 0: 
+            refundcountpercentmonth3 = 100.00 * (refundCountPastMonth3 / countPastMonth3)
+        else: 
+            refundcountpercentmonth3 = 0
+
+        if countPastMonth2 > 0: 
+            refundcountpercentmonth2 = 100.00 * (refundCountPastMonth2 / countPastMonth2)
+        else: 
+            refundcountpercentmonth2 = 0
+
+        if countPastMonth > 0: 
+            refundcountpercentmonth = 100.00 * (refundCountPastMonth / countPastMonth)
+        else: 
+            refundcountpercentmonth = 0
+
+        if countCurrentMonth > 0: 
+            refundcountpercentcurrentmonth = 100.00 * (refundCountCurrentMonth / countCurrentMonth)
+        else: 
+            refundcountpercentcurrentmonth = 0
+
+        if volume6monthtotal > 0: 
+            refundcountpercent6month = 100.00 * (refundCounttotalPastMonth6 / counttotalPastMonth6)
+        else: 
+            refundcountpercent6month = 0
+
+        if volumecounttotal > 0: 
+            refundcountpercenttotal = 100.00 * (refundcounttotal / volumecounttotal)
+        else: 
+            refundcountpercenttotal = 0
+
+        dfrefundpercentcount = pd.DataFrame({'Past Month 6':[refundcountpercentmonth6],
+                             'Past Month 5':[refundcountpercentmonth5],
+                             'Past Month 4':[refundcountpercentmonth4],
+                             'Past Month 3':[refundcountpercentmonth3],
+                             'Past Month 2':[refundcountpercentmonth2],
+                             'Past Month 1':[refundcountpercentmonth],
+                             'Current Month To Date':[refundcountpercentcurrentmonth],
+                             '6 month total':[refundcountpercent6month],
+                             'lifetime_total':[refundcountpercenttotal]
+                       }, index=['Refund_Count_Ratio'])
+        
+
+        dflastersresults = pd.concat([dfsalesvolume, dfsalescount, dfrefundamount, dfrefundcount, dfavgsalescount, dfhighesttrans,dfrefundamountpercent, dfrefundpercentcount], axis=0)
 
 
         dfcalc = pd.DataFrame({'Refunds for past 90 days':[refund90],
