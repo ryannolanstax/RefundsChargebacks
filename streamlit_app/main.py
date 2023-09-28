@@ -88,10 +88,14 @@ def download_df():
         refundtotal = np.sum(refund['total'])
         refund90 = np.sum(refund[refund['created_at'] > days90]['total'])
 
+        cardonly = df3.query("type == 'charge' & payment_method == 'card'")
+        cardtotal = np.sum(cardonly['total'])
+        card180days = np.sum(cardonly[cardonly['created_at'] > days180]['total'])
+
         Lifetime_refund_rate = (refundtotal / volumetotal)
         day90_refund_rate = (refund90/volume90)
-        Lifetime_chargeback_rate = (chargebackslifetime / volumetotal)
-        day180_chargeback_rate = (chargebacks180/volume180)
+        Lifetime_chargeback_rate = (chargebackslifetime / cardtotal)
+        day180_chargeback_rate = (chargebacks180/card180days)
 
 
         #####################################
