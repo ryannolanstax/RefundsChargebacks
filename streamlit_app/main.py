@@ -61,6 +61,7 @@ def download_df():
         dfbaddates = df[df['created_at'].str.split(expand=True)[1].isna() == True].copy()
 
         dfbaddates['created_at'] = dfbaddates['created_at'].apply(lambda x: datetime.datetime(1900, 1, 1, 0, 0, 0) + datetime.timedelta(days=float(x)))
+        dfbaddates['created_at'] = pd.to_datetime(dfbaddates['created_at'])
         dfbaddates['created_at'] = dfbaddates['created_at'].dt.strftime('%m/%d/%y')
         df.loc[df['created_at'].str.split(expand=True)[1].isna() == False, 'created_at'] = df2['created_at'].str.split(expand=True)[0].str.strip()
         newdf = pd.concat([df2, dfbaddates])
