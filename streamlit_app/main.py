@@ -450,9 +450,9 @@ def download_df():
 
 
         objects_to_download = {
-            "Sheet1": df4,
-            "Sheet2": dflastersresults,
-            "Sheet3": dfcalc,
+            "Clean_Data": df4,
+            "History": dflastersresults,
+            "Calculations": dfcalc,
         }
 
         download_link = download_button(objects_to_download, st.session_state.filename)
